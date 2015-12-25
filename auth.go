@@ -28,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 var (
@@ -37,6 +38,10 @@ var (
 
 const (
 	TokenFieldName = "access_token"
+)
+
+var (
+	EnableCookie = false // Save token string to cookie if enableCookie=true.
 )
 
 func init() {
@@ -50,6 +55,15 @@ func init() {
 
 	// If exist config.
 	if len(confs) > 0 {
+
+		if v, ok := confs["enablecookie"]; ok {
+			if b, err := strconv.ParseBool(v); err == nil {
+				EnableCookie = b
+			} else if v == "1" || v == "Y" || v == "y" {
+				EnableCookie = true
+			}
+		}
+
 		if v, ok := confs["storename"]; ok {
 			storeName = v
 		}
@@ -130,14 +144,56 @@ func (a *Automatic) CheckToken(req *http.Request) (token *tokenauth.Token, err e
 		if tokStr := req.Form.Get(TokenFieldName); tokStr != "" {
 			tokenString = tokStr
 		}
-
 	}
+
+	// Search for cookie
+	if len(tokenString) == 0 && EnableCookie {
+		if cookie, err := req.Cookie(TokenFieldName); err == nil {
+			tokenString = cookie.Value
+		}
+	}
+
 	if len(tokenString) == 0 {
 		return nil, tokenauth.ERR_TokenEmpty
 	}
 	// Get token.
 	token, err = tokenauth.ValidateToken(tokenString)
 	return
+}
+
+// Save token string to Response Header and Cookie.
+func (a *Automatic) SetTokenString(token *tokenauth.Token, w http.ResponseWriter) {
+
+	if token == nil {
+		panic(`parameter "token" is nil.`)
+	}
+	if w == nil {
+		panic(`parameter "w" is nil.`)
+	}
+
+	// e.g.  Authorization:access_token hJN+8GhT1RzbXStv+TIuH0KeI95hZhzMo4pdBBnuP78=
+	w.Header().Set("Authorization", fmt.Sprintf("%s %s", TokenFieldName, token.Value))
+
+	if EnableCookie {
+		cookie := a.ConvertoCookie(token)
+		http.SetCookie(w, cookie)
+	}
+}
+
+// Returns a Cookie, Create by token info.
+func (a *Automatic) ConvertoCookie(token *tokenauth.Token) *http.Cookie {
+	if token == nil {
+		return nil
+	}
+	return &http.Cookie{
+		Name:     TokenFieldName,
+		Value:    token.Value,
+		Path:     "/",
+		Expires:  time.Unix(token.DeadLine, 0),
+		MaxAge:   int(token.DeadLine - time.Now().Unix()),
+		Secure:   true,
+		HttpOnly: true,
+	}
 }
 
 // Write error info to response and abort request.

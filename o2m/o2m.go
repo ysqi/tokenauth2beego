@@ -77,8 +77,7 @@ func (a *O2MAutomatic) NewClientToken(client *tokenauth.Audience, w ...http.Resp
 	}
 
 	if len(w) > 0 {
-		// e.g.  Authorization:access_token hJN+8GhT1RzbXStv+TIuH0KeI95hZhzMo4pdBBnuP78=
-		w[0].Header().Set("Authorization", fmt.Sprintf("%s %s", tokenauth2beego.TokenFieldName, token.Value))
+		a.SetTokenString(token, w[0])
 	}
 	return
 }

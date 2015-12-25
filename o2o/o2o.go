@@ -5,7 +5,6 @@
 package o2o
 
 import (
-	"fmt"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/context"
 	"github.com/ysqi/tokenauth"
@@ -60,8 +59,8 @@ func (a *O2OAutomatic) NewSingleToken(userID string, w ...http.ResponseWriter) (
 	}
 
 	if len(w) > 0 && w[0] != nil {
-		// e.g.  Authorization:access_token hJN+8GhT1RzbXStv+TIuH0KeI95hZhzMo4pdBBnuP78=
-		w[0].Header().Set("Authorization", fmt.Sprintf("%s %s", tokenauth2beego.TokenFieldName, token.Value))
+		a.SetTokenString(token, w[0])
 	}
+
 	return
 }

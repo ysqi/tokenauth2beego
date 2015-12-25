@@ -32,6 +32,7 @@ var _ = Suite(&S{})
 var handler *beego.ControllerRegistor
 
 func (s *S) SetUpSuite(c *C) {
+
 	handler = beego.NewControllerRegister()
 	handler.InsertFilter("/user/*", beego.BeforeRouter, o2o.DefaultFileter())
 	handler.Any("*", func(ctx *context.Context) {
@@ -133,7 +134,7 @@ func (s *S) Test_RealToken_Header(c *C) {
 	c.Assert(bodyStr, Equals, "OK")
 }
 
-func (s *S) Test_RealToken_FormPost(c *C) {
+func (s *S) Test_RealToken_FromPost(c *C) {
 
 	userID := "ysqi"
 	recorder := httptest.NewRecorder()
@@ -152,7 +153,7 @@ func (s *S) Test_RealToken_FormPost(c *C) {
 	c.Assert(bodyStr, Equals, "OK")
 }
 
-func (s *S) Test_RealToken_FormGet(c *C) {
+func (s *S) Test_RealToken_FromGet(c *C) {
 
 	userID := "ysqi"
 	recorder := httptest.NewRecorder()
@@ -161,6 +162,26 @@ func (s *S) Test_RealToken_FormGet(c *C) {
 	c.Assert(token, NotNil)
 
 	r, _ := http.NewRequest("PUT", "/user/ok?access_token="+token.Value, nil)
+	handler.ServeHTTP(recorder, r)
+
+	bodyStr := recorder.Body.String()
+	c.Assert(bodyStr, Equals, "OK")
+}
+
+func (s *S) Test_RealToken_FromCookie(c *C) {
+
+	tokenauth2beego.EnableCookie = true
+
+	userID := "ysqi"
+	recorder := httptest.NewRecorder()
+	token, err := o2o.Auth.NewSingleToken(userID, recorder)
+	c.Assert(err, IsNil)
+	c.Assert(token, NotNil)
+	cookieInfo := recorder.Header().Get("Set-Cookie")
+	c.Assert(cookieInfo, Not(Equals), "")
+
+	r, _ := http.NewRequest("PUT", "/user/ok", nil)
+	r.AddCookie(o2o.Auth.ConvertoCookie(token))
 	handler.ServeHTTP(recorder, r)
 
 	bodyStr := recorder.Body.String()
